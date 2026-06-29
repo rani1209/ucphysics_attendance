@@ -369,8 +369,7 @@ function api(action, payload) {
 // ── INIT ─────────────────────────────────────────────────────
 window.onload = function() {
   if (location.hash === '#parent') { showParentView(); hide('loading'); return; }
-  // Check if already logged in
-  const saved = localStorage.getItem('uc_user');
+  var saved = localStorage.getItem('uc_user');
   if (saved) {
     try {
       APP.user = JSON.parse(saved);
@@ -380,18 +379,16 @@ window.onload = function() {
       return;
     } catch(e) { localStorage.removeItem('uc_user'); }
   }
-  // Check setup
-  setMsg('Checking setup…');
+  setMsg('Connecting to server…');
   api('isSetupDone', null).then(function(r) {
+    if (r.error) {
+      setMsg('❌ ' + r.error + '. Please refresh.');
+      return;
+    }
     if (!r.done) { show('setup-screen'); hide('loading'); return; }
-    show('login-screen'); hide('loading');
-  }).catch(function() {
     show('login-screen'); hide('loading');
   });
 };
-
-function setMsg(m) { document.getElementById('loading-msg').textContent = m; }
-
 // ── LOGIN ─────────────────────────────────────────────────────
 function doLogin() {
   const email = val('login-email').toLowerCase().trim();
