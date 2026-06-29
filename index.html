@@ -426,7 +426,13 @@ function doSetup() {
       document.getElementById('setup-msg').innerHTML = '<div class="alert alert-ok">✅ Done! Please login.</div>';
       setTimeout(function() { hide('setup-screen'); show('login-screen'); }, 1500);
     } else {
-      document.getElementById('setup-msg').innerHTML = '<div class="alert alert-err">Error: ' + r.error + '</div>';
+  if (r.error && r.error.includes('already registered')) {
+    document.getElementById('setup-msg').innerHTML = '<div class="alert alert-warn">Already registered! Redirecting to login…</div>';
+    setTimeout(function() { hide('setup-screen'); show('login-screen'); }, 1500);
+  } else {
+    document.getElementById('setup-msg').innerHTML = '<div class="alert alert-err">Error: ' + r.error + '</div>';
+  }
+}
     }
   });
 }
