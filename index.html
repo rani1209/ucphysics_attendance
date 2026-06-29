@@ -389,45 +389,6 @@ window.onload = function() {
     show('login-screen'); hide('loading');
   });
 };
-// ── LOGIN ─────────────────────────────────────────────────────
-function doLogin() {
-  const email = val('login-email').toLowerCase().trim();
-  const pwd = val('login-password');
-  if (!email || !pwd) return showToast('Enter email and password');
-  document.getElementById('login-err').innerHTML = '<div class="alert alert-info">Logging in…</div>';
-  api('login', {email: email, password: pwd}).then(function(r) {
-    if (!r.ok) {
-      document.getElementById('login-err').innerHTML = '<div class="alert alert-err">❌ ' + r.error + '</div>';
-      return;
-    }
-    APP.user = r.user;
-    TUTOR_MODE = r.user.role === 'tutor';
-    localStorage.setItem('uc_user', JSON.stringify(r.user));
-    document.getElementById('login-err').innerHTML = '';
-    hide('login-screen');
-    show('loading');
-    setMsg('Loading data…');
-    initApp();
-  });
-}
-
-function doLogout() {
-  localStorage.removeItem('uc_user');
-  APP.user = null;
-  TUTOR_MODE = false;
-  hide('app');
-  document.getElementById('login-email').value = '';
-  document.getElementById('login-password').value = '';
-  show('login-screen');
-}
-
-// Allow Enter key to login
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' && !document.getElementById('login-screen').classList.contains('hidden')) {
-    doLogin();
-  }
-});
-
 // ── SETUP ─────────────────────────────────────────────────────
 function doSetup() {
   const data = {
