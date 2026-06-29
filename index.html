@@ -1,4 +1,4 @@
-<!-- UC Physics Attendance Manager v3 -->
+<!-- UC Physics Attendance Manager v4 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -38,6 +38,7 @@ input:focus,select:focus{border-color:var(--green)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:var(--radius-sm);font-size:15px;font-weight:500;border:1px solid var(--border);background:#fff;color:#222;cursor:pointer;width:100%;margin-bottom:8px}
 .btn-primary{background:var(--green);color:#fff;border-color:var(--green)}
 .btn-danger{color:var(--red);border-color:#F09595}
+.btn-warn{color:var(--amber);border-color:#FAC775}
 .btn-sm{padding:5px 10px;font-size:12px;width:auto;margin-bottom:0}
 .btn-row{display:flex;gap:8px}
 .btn-row .btn{flex:1}
@@ -58,6 +59,7 @@ input:focus,select:focus{border-color:var(--green)}
 .bp{background:#EAF3DE;color:#3B6D11}
 .ba{background:var(--red-light);color:var(--red)}
 .bh{background:var(--amber-light);color:var(--amber)}
+.bw{background:#e8f5ee;color:#1a6b3c}
 .progress{height:6px;border-radius:3px;background:#e8e8e8;overflow:hidden;margin:3px 0}
 .progress-fill{height:100%;border-radius:3px}
 .alert{padding:10px 12px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:10px}
@@ -81,12 +83,22 @@ input:focus,select:focus{border-color:var(--green)}
 .page-logo p{font-size:13px;color:var(--gray-mid)}
 .sl{font-size:11px;font-weight:600;color:var(--gray-mid);text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 6px}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px}
+.cal-head{text-align:center;font-size:11px;color:var(--gray-mid);padding:4px 0;font-weight:600}
+.cal-day{text-align:center;font-size:12px;padding:6px 2px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+.cal-day:hover{background:var(--gray-light)}
+.cal-day.today{font-weight:700;color:var(--green);border-color:var(--green)}
+.cal-day.holiday{background:var(--amber-light);color:var(--amber)}
+.cal-day.weekend{color:var(--red);opacity:0.7}
+.cal-day.working{background:var(--green-light);color:var(--green)}
+.cal-day.other{opacity:0.3}
 </style>
 </head>
 <body>
 <div id="loading"><div class="spinner"></div><div id="loading-msg">Loading UC Physics Attendance…</div></div>
 <div id="toast"></div>
 
+<!-- LOGIN -->
 <div id="login-screen" class="full-page hidden">
   <div class="page-card">
     <div class="page-logo">
@@ -98,12 +110,14 @@ input:focus,select:focus{border-color:var(--green)}
     <div class="field"><label>Password</label><input id="login-password" type="password" placeholder="Enter your password"></div>
     <div id="login-err" style="margin-bottom:8px"></div>
     <button class="btn btn-primary" onclick="doLogin()">🔐 Login</button>
-    <div style="text-align:center;margin-top:12px">
+    <div style="text-align:center;margin-top:12px;display:flex;flex-direction:column;gap:8px;align-items:center">
       <button class="btn btn-sm btn" onclick="showParentView()" style="width:auto;font-size:13px">👨‍👩‍👧 I am a Parent</button>
+      <button onclick="showForgotPwd()" style="background:none;border:none;font-size:12px;color:var(--gray-mid);cursor:pointer">🔑 Forgot Password?</button>
     </div>
   </div>
 </div>
 
+<!-- SETUP -->
 <div id="setup-screen" class="full-page hidden">
   <div class="page-card">
     <div class="page-logo">
@@ -121,6 +135,38 @@ input:focus,select:focus{border-color:var(--green)}
   </div>
 </div>
 
+<!-- FORGOT PASSWORD -->
+<div id="forgot-screen" class="full-page hidden">
+  <div class="page-card">
+    <div class="page-logo">
+      <div style="font-size:48px;margin-bottom:10px">🔑</div>
+      <h2>Reset Password</h2>
+      <p>University College Physics</p>
+    </div>
+    <div id="forgot-step1">
+      <div class="field"><label>Your Registered Email *</label><input id="forgot-email" type="email" placeholder="yourname@gmail.com"></div>
+      <div id="forgot-msg1" style="margin-bottom:8px"></div>
+      <button class="btn btn-primary" onclick="sendOTP()">📧 Send OTP to Email</button>
+      <div style="text-align:center;margin-top:10px">
+        <button onclick="hideForgotPwd()" style="background:none;border:none;font-size:13px;color:var(--gray-mid);cursor:pointer">← Back to Login</button>
+      </div>
+    </div>
+    <div id="forgot-step2" class="hidden">
+      <div class="alert ai" style="margin-bottom:12px">✅ OTP sent! Check your email inbox. Valid for 10 minutes.</div>
+      <div class="field"><label>Enter 6-digit OTP *</label><input id="forgot-otp" type="number" placeholder="000000" style="font-size:22px;font-weight:700;text-align:center;letter-spacing:6px"></div>
+      <div class="field"><label>New Password *</label><input id="forgot-newpwd" type="password" placeholder="Enter new password"></div>
+      <div class="field"><label>Confirm New Password *</label><input id="forgot-confirmpwd" type="password" placeholder="Confirm new password"></div>
+      <div id="forgot-msg2" style="margin-bottom:8px"></div>
+      <button class="btn btn-primary" onclick="verifyOTPAndReset()">✅ Reset Password</button>
+      <div style="text-align:center;margin-top:10px;display:flex;gap:12px;justify-content:center">
+        <button onclick="sendOTP()" style="background:none;border:none;font-size:12px;color:var(--green);cursor:pointer">🔄 Resend OTP</button>
+        <button onclick="hideForgotPwd()" style="background:none;border:none;font-size:12px;color:var(--gray-mid);cursor:pointer">← Back</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PARENT -->
 <div id="parent-screen" class="full-page hidden">
   <div class="page-card">
     <div class="page-logo">
@@ -133,18 +179,16 @@ input:focus,select:focus{border-color:var(--green)}
       <input id="parent-phone" type="tel" placeholder="e.g. 9876543210" style="font-size:16px;font-weight:600;text-align:center">
       <div style="font-size:11px;color:var(--gray-mid);margin-top:4px;text-align:center">Must match number registered with college</div>
     </div>
-    <div class="field">
-      <label>Your Child's Roll Number *</label>
-      <input id="parent-roll" placeholder="e.g. 23PH001" style="font-size:16px;font-weight:600;text-align:center">
-    </div>
+    <div class="field"><label>Your Child's Roll Number *</label><input id="parent-roll" placeholder="e.g. 23PH001" style="font-size:16px;font-weight:600;text-align:center"></div>
     <button class="btn btn-primary" onclick="fetchParentReport()">🔒 View My Child's Attendance</button>
     <div id="parent-result" style="margin-top:16px"></div>
     <div style="text-align:center;margin-top:12px">
-      <button class="btn btn-sm btn" onclick="hideParentView()" style="width:auto">← Back</button>
+      <button onclick="hideParentView()" style="background:none;border:none;font-size:13px;color:var(--gray-mid);cursor:pointer">← Back to Login</button>
     </div>
   </div>
 </div>
 
+<!-- MAIN APP -->
 <div id="app" class="hidden">
   <div class="top-bar">
     <span style="font-size:20px">🎓</span>
@@ -155,6 +199,8 @@ input:focus,select:focus{border-color:var(--green)}
     </div>
   </div>
   <div class="tab-bar" id="tab-bar"></div>
+
+  <!-- MARK -->
   <div class="screen active" id="screen-mark">
     <div class="day-nav">
       <button class="nav-btn" onclick="changeDay(-1)">‹</button>
@@ -172,10 +218,12 @@ input:focus,select:focus{border-color:var(--green)}
       <button class="btn btn-primary" onclick="saveAttendance()">💾 Save Attendance</button>
     </div>
   </div>
+
+  <!-- STUDENTS -->
   <div class="screen" id="screen-students">
     <div class="card">
       <div class="card-title">Import from CSV / Excel</div>
-      <div class="file-drop" onclick="document.getElementById('imp').click()">📂 Tap to upload CSV or Excel<br><span style="font-size:11px">Columns: Roll No, Name, Phone, Parent Name, Parent Phone, Parent Email, WhatsApp, Section</span></div>
+      <div class="file-drop" onclick="g('imp').click()">📂 Tap to upload CSV or Excel<br><span style="font-size:11px">Roll No, Name, Phone, Parent Name, Parent Phone, Parent Email, WhatsApp, Section</span></div>
       <input type="file" id="imp" accept=".csv,.xlsx,.xls" class="hidden" onchange="importStudents(event)">
     </div>
     <div class="card">
@@ -192,43 +240,94 @@ input:focus,select:focus{border-color:var(--green)}
     </div>
     <div class="card"><div class="card-title">Student List (<span id="student-count">0</span>)</div><div id="student-list-ui"></div></div>
   </div>
+
+  <!-- SUMMARY -->
   <div class="screen" id="screen-summary">
     <div id="sum-sel" class="card hidden"><div class="card-title">Select Subject</div><select id="sum-sub" onchange="renderSummary()"></select></div>
     <div class="stats-grid" id="stats-grid"></div>
     <div class="card"><div class="card-title">Student-wise Attendance</div><div id="summary-list"></div></div>
     <div class="card"><div class="card-title">Export</div><div class="btn-row"><button class="btn" onclick="exportCSV()">📊 CSV</button><button class="btn" onclick="exportPDF()">📄 PDF</button></div></div>
   </div>
+
+  <!-- REPORT -->
   <div class="screen" id="screen-report">
-    <div class="card"><div class="card-title">Generate Daily Parent Report</div><div class="field"><label>Select Date</label><input type="date" id="report-date"></div><button class="btn btn-primary" onclick="generateParentReport()">📋 Generate Report</button></div>
+    <div class="card"><div class="card-title">Generate Daily Parent Report</div>
+      <div class="field"><label>Select Date</label><input type="date" id="report-date"></div>
+      <button class="btn btn-primary" onclick="generateParentReport()">📋 Generate Report</button>
+    </div>
     <div id="report-output"></div>
   </div>
+
+  <!-- SETTINGS -->
   <div class="screen" id="screen-settings">
     <div id="teachers-section" class="hidden">
       <div class="card">
         <div class="card-title">Add Subject Teacher</div>
         <div class="field"><label>Teacher Email *</label><input id="t-email" type="email"></div>
         <div class="field"><label>Teacher Name *</label><input id="t-name"></div>
-        <div class="field"><label>Password for Teacher *</label><input id="t-pwd" type="text"></div>
+        <div class="field"><label>Password for Teacher *</label><input id="t-pwd" type="text" placeholder="Teacher will use this to login"></div>
         <div class="field"><label>Teacher Phone</label><input id="t-phone" type="tel"></div>
-        <div class="field"><label>Subject Code *</label><input id="t-code"></div>
-        <div class="field"><label>Subject Name *</label><input id="t-subj"></div>
+        <div class="field"><label>Subject Code *</label><input id="t-code" placeholder="e.g. 24PHY601"></div>
+        <div class="field"><label>Subject Name *</label><input id="t-subj" placeholder="e.g. Condensed Matter Physics"></div>
         <button class="btn btn-primary" onclick="addTeacher()">➕ Add Teacher</button>
       </div>
       <div class="card"><div class="card-title">Registered Teachers</div><div id="teacher-list-ui"></div></div>
     </div>
+
+    <!-- HOLIDAY MANAGER -->
     <div class="card">
-      <div class="card-title">Add Custom Holiday</div>
+      <div class="card-title">📅 Holiday & Working Day Manager</div>
+      <div style="font-size:12px;color:var(--gray-mid);margin-bottom:10px">
+        Add/remove holidays. Mark weekends or holidays as working days.
+      </div>
+
+      <!-- Calendar -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <button class="btn btn-sm btn" onclick="calNav(-1)" style="width:auto">‹</button>
+        <div style="flex:1;text-align:center;font-weight:600;font-size:14px" id="cal-month-label"></div>
+        <button class="btn btn-sm btn" onclick="calNav(1)" style="width:auto">›</button>
+      </div>
+      <div class="cal-grid" id="cal-head-row">
+        <div class="cal-head">Su</div><div class="cal-head">Mo</div><div class="cal-head">Tu</div>
+        <div class="cal-head">We</div><div class="cal-head">Th</div><div class="cal-head">Fr</div><div class="cal-head">Sa</div>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:11px">
+        <span><span class="badge bh" style="padding:2px 6px">H</span> Holiday</span>
+        <span><span class="badge bw" style="padding:2px 6px">W</span> Working day</span>
+        <span style="color:var(--red)">Red = Weekend</span>
+        <span style="color:var(--green)">Bold = Today</span>
+      </div>
+
+      <!-- Add Holiday -->
+      <div class="sl">Add Holiday</div>
       <div class="field"><label>Date</label><input type="date" id="hol-date"></div>
-      <div class="field"><label>Holiday Name</label><input id="hol-name"></div>
-      <button class="btn btn-primary" onclick="addHoliday()">➕ Add Holiday</button>
-      <div class="sl">Custom Holidays</div><div id="hol-list"></div>
+      <div class="field"><label>Holiday Name</label><input id="hol-name" placeholder="e.g. College Foundation Day"></div>
+      <button class="btn btn-primary" onclick="addHoliday()">➕ Mark as Holiday</button>
+
+      <!-- Add Working Day -->
+      <div class="sl">Mark as Working Day</div>
+      <div style="font-size:12px;color:var(--gray-mid);margin-bottom:8px">Use this to mark a Saturday or holiday as a working day</div>
+      <div class="field"><label>Date</label><input type="date" id="work-date"></div>
+      <div class="field"><label>Note (optional)</label><input id="work-note" placeholder="e.g. Special working Saturday"></div>
+      <button class="btn btn-warn" onclick="addWorkingDay()">✅ Mark as Working Day</button>
+
+      <!-- Current custom holidays list -->
+      <div class="sl">Custom Holidays Added</div>
+      <div id="hol-list"></div>
+
+      <!-- Working days list -->
+      <div class="sl">Working Days Added</div>
+      <div id="work-list"></div>
     </div>
+
     <div class="card">
       <div class="card-title">Change My Password</div>
-      <div class="field"><label>New Password</label><input id="new-pwd" type="password"></div>
+      <div class="field"><label>New Password</label><input id="new-pwd" type="password" placeholder="Enter new password"></div>
       <button class="btn btn-primary" onclick="changePassword()">🔐 Update Password</button>
     </div>
-    <div class="card"><div class="card-title">App Info</div>
+    <div class="card">
+      <div class="card-title">App Info</div>
       <div style="font-size:13px;color:var(--gray-mid);line-height:2">
         <div>Email: <strong id="info-email"></strong></div>
         <div>Role: <strong id="info-role"></strong></div>
@@ -238,6 +337,7 @@ input:focus,select:focus{border-color:var(--green)}
   </div>
 </div>
 
+<!-- EDIT MODAL -->
 <div class="modal-bg hidden" id="edit-modal">
   <div class="modal">
     <div style="font-size:16px;font-weight:600;margin-bottom:14px">Edit Student</div>
@@ -253,11 +353,30 @@ input:focus,select:focus{border-color:var(--green)}
   </div>
 </div>
 
+<!-- DAY ACTION MODAL -->
+<div class="modal-bg hidden" id="day-modal">
+  <div class="modal">
+    <div style="font-size:16px;font-weight:600;margin-bottom:6px" id="day-modal-title">—</div>
+    <div style="font-size:13px;color:var(--gray-mid);margin-bottom:14px" id="day-modal-status">—</div>
+    <button class="btn btn-danger" id="day-modal-holiday-btn" onclick="dayModalAddHoliday()">🔴 Mark as Holiday</button>
+    <button class="btn btn-warn" id="day-modal-working-btn" onclick="dayModalAddWorking()">🟢 Mark as Working Day</button>
+    <button class="btn btn-danger" id="day-modal-remove-btn" onclick="dayModalRemove()" style="display:none">🗑️ Remove Override</button>
+    <button class="btn" onclick="closeDayModal()">Cancel</button>
+    <div id="day-modal-name-field" class="hidden">
+      <div class="field" style="margin-top:8px"><label>Holiday Name</label><input id="day-modal-name" placeholder="e.g. Special Holiday"></div>
+      <button class="btn btn-primary" onclick="dayModalConfirm()">✅ Confirm</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIlWYtbPxF_RW_o7TbQHf2VcdJTrUB15Vz9X92itbBsZ_0eoBKoAhu8BB9CeYnieoAdA/exec';
-var APP = {user:null,students:[],holidays:{kerala:{},custom:{}},attendance:{},courses:[],teachers:[],currentDate:new Date()};
+var APP = {user:null,students:[],holidays:{kerala:{},custom:{},workingDays:{}},attendance:{},courses:[],teachers:[],currentDate:new Date()};
 var TUTOR_MODE = false;
+var calViewMonth = new Date();
+var dayModalDate = '';
+var dayModalAction = '';
 
 function api(action, payload) {
   return new Promise(function(resolve) {
@@ -266,7 +385,7 @@ function api(action, payload) {
     if (payload) params += '&payload=' + encodeURIComponent(JSON.stringify(payload));
     var done = false;
     var timer = setTimeout(function() {
-      if (!done) { done=true; delete window[cbName]; resolve({ok:false,error:'Timeout'}); }
+      if (!done) { done=true; delete window[cbName]; resolve({ok:false,error:'Timeout — check connection'}); }
     }, 15000);
     window[cbName] = function(data) {
       if (!done) { done=true; clearTimeout(timer); delete window[cbName]; resolve(data); }
@@ -274,13 +393,13 @@ function api(action, payload) {
     var s = document.createElement('script');
     s.src = SCRIPT_URL + '?' + params;
     s.onerror = function() {
-      if (!done) { done=true; clearTimeout(timer); delete window[cbName]; resolve({ok:false,error:'Load failed'}); }
+      if (!done) { done=true; clearTimeout(timer); delete window[cbName]; resolve({ok:false,error:'Connection failed'}); }
     };
     document.body.appendChild(s);
   });
 }
 
-function setMsg(m) { document.getElementById('loading-msg').textContent = m; }
+function setMsg(m) { g('loading-msg').textContent = m; }
 
 window.onload = function() {
   if (location.hash === '#parent') { showParentView(); hide('loading'); return; }
@@ -294,14 +413,15 @@ window.onload = function() {
       return;
     } catch(e) { localStorage.removeItem('uc_user'); }
   }
-  setMsg('Connecting to server…');
+  setMsg('Connecting…');
   api('isSetupDone', null).then(function(r) {
-    if (r.error) { setMsg('Error: ' + r.error); return; }
+    if (r.error) { setMsg('❌ ' + r.error + ' — Please refresh.'); return; }
     if (!r.done) { show('setup-screen'); hide('loading'); return; }
     show('login-screen'); hide('loading');
   });
 };
 
+// ── LOGIN ─────────────────────────────────────────────────────
 function doLogin() {
   var email = g('login-email').value.toLowerCase().trim();
   var pwd = g('login-password').value;
@@ -327,15 +447,51 @@ document.addEventListener('keydown', function(e) {
   if (e.key==='Enter' && !g('login-screen').classList.contains('hidden')) doLogin();
 });
 
+// ── FORGOT PASSWORD ───────────────────────────────────────────
+function showForgotPwd() {
+  hide('login-screen');
+  g('forgot-email').value=''; g('forgot-otp').value='';
+  g('forgot-newpwd').value=''; g('forgot-confirmpwd').value='';
+  g('forgot-msg1').innerHTML=''; g('forgot-msg2').innerHTML='';
+  show('forgot-step1'); hide('forgot-step2');
+  show('forgot-screen');
+}
+
+function hideForgotPwd() { hide('forgot-screen'); show('login-screen'); }
+
+function sendOTP() {
+  var email = g('forgot-email').value.toLowerCase().trim();
+  if (!email) return toast('Enter your email');
+  g('forgot-msg1').innerHTML = '<div class="alert ai">Sending OTP…</div>';
+  api('sendOTP', email).then(function(r) {
+    if (r.ok) { g('forgot-msg1').innerHTML=''; hide('forgot-step1'); show('forgot-step2'); }
+    else g('forgot-msg1').innerHTML = '<div class="alert ae">❌ ' + r.error + '</div>';
+  });
+}
+
+function verifyOTPAndReset() {
+  var email = g('forgot-email').value.toLowerCase().trim();
+  var otp = g('forgot-otp').value.trim();
+  var newPwd = g('forgot-newpwd').value;
+  var confirmPwd = g('forgot-confirmpwd').value;
+  if (!otp) return toast('Enter OTP');
+  if (!newPwd) return toast('Enter new password');
+  if (newPwd.length < 6) { g('forgot-msg2').innerHTML='<div class="alert ae">Password must be at least 6 characters</div>'; return; }
+  if (newPwd !== confirmPwd) { g('forgot-msg2').innerHTML='<div class="alert ae">Passwords do not match</div>'; return; }
+  g('forgot-msg2').innerHTML = '<div class="alert ai">Verifying…</div>';
+  api('verifyOTPAndReset', {email:email, otp:otp, newPassword:newPwd}).then(function(r) {
+    if (r.ok) {
+      g('forgot-msg2').innerHTML = '<div class="alert ao">✅ Password reset! Redirecting to login…</div>';
+      setTimeout(function() { hide('forgot-screen'); show('login-screen'); toast('Login with your new password'); }, 2000);
+    } else g('forgot-msg2').innerHTML = '<div class="alert ae">❌ ' + r.error + '</div>';
+  });
+}
+
+// ── SETUP ─────────────────────────────────────────────────────
 function doSetup() {
-  var data = {
-    tutorName: v('s-name'), tutorEmail: v('s-email').toLowerCase().trim(),
-    tutorPassword: v('s-pwd'), tutorPhone: v('s-phone'),
-    batch: v('s-batch'), institution: 'University College, Thiruvananthapuram'
-  };
+  var data = {tutorName:v('s-name'), tutorEmail:v('s-email').toLowerCase().trim(), tutorPassword:v('s-pwd'), tutorPhone:v('s-phone'), batch:v('s-batch'), institution:'University College, Thiruvananthapuram'};
   if (!data.tutorName||!data.tutorEmail||!data.tutorPassword||!data.batch) {
-    g('setup-msg').innerHTML = '<div class="alert ae">Name, Email, Password and Batch required.</div>';
-    return;
+    g('setup-msg').innerHTML = '<div class="alert ae">Name, Email, Password and Batch required.</div>'; return;
   }
   g('setup-msg').innerHTML = '<div class="alert ai">Setting up…</div>';
   api('setup', data).then(function(r) {
@@ -343,7 +499,7 @@ function doSetup() {
       g('setup-msg').innerHTML = '<div class="alert ao">✅ Done! Please login.</div>';
       setTimeout(function() { hide('setup-screen'); show('login-screen'); }, 1500);
     } else if (r.error && r.error.indexOf('already') > -1) {
-      g('setup-msg').innerHTML = '<div class="alert aw">Already registered! Go to login.</div>';
+      g('setup-msg').innerHTML = '<div class="alert aw">Already registered! Redirecting…</div>';
       setTimeout(function() { hide('setup-screen'); show('login-screen'); }, 1500);
     } else {
       g('setup-msg').innerHTML = '<div class="alert ae">Error: ' + r.error + '</div>';
@@ -351,6 +507,7 @@ function doSetup() {
   });
 }
 
+// ── INIT APP ──────────────────────────────────────────────────
 function initApp() {
   g('role-badge').textContent = TUTOR_MODE ? 'Class Tutor' : 'Teacher';
   g('info-email').textContent = APP.user.email;
@@ -368,6 +525,7 @@ function initApp() {
     }
     renderHolidays(); renderStudents(); renderDay();
     g('report-date').value = fmtDate(new Date());
+    calViewMonth = new Date();
     hide('loading'); show('app');
   });
 }
@@ -386,28 +544,44 @@ function showScr(id) {
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   g('screen-'+id).classList.add('active');
-  var tb = g('tb-'+id); if(tb) tb.classList.add('active');
+  var tb=g('tb-'+id); if(tb) tb.classList.add('active');
   if (id==='summary') renderSummary();
   if (id==='students') renderStudents();
-  if (id==='settings'&&TUTOR_MODE) renderTeachers();
+  if (id==='settings') { renderTeachers(); renderHolidays(); renderCal(); }
 }
 
+// ── DATE HELPERS ──────────────────────────────────────────────
 function fmtDate(d){return d.toLocaleDateString('en-CA');}
 function isWE(ds){var w=new Date(ds+'T00:00:00').getDay();return w===0||w===6;}
 function isHol(ds){return !!(APP.holidays.kerala[ds]||APP.holidays.custom[ds]);}
+function isWorkingDay(ds){return !!(APP.holidays.workingDays&&APP.holidays.workingDays[ds]);}
+function isSkip(ds){
+  if (isWorkingDay(ds)) return false; // override
+  return isWE(ds)||isHol(ds);
+}
 function holName(ds){return APP.holidays.kerala[ds]||APP.holidays.custom[ds]||'';}
-function isSkip(ds){return isWE(ds)||isHol(ds);}
 function changeDay(n){APP.currentDate.setDate(APP.currentDate.getDate()+n);renderDay();}
 function goToday(){APP.currentDate=new Date();renderDay();}
 
+// ── ATTENDANCE ────────────────────────────────────────────────
 function renderDay() {
   var ds = fmtDate(APP.currentDate);
   g('day-title').textContent = APP.currentDate.toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   g('day-sub').textContent = TUTOR_MODE ? 'Tutor View' : (APP.user.subjectCode+' – '+APP.user.subjectName);
   var ban=g('holiday-banner'), list=g('mark-list');
-  if (isWE(ds)){ban.innerHTML='<div class="alert aw">🏖️ Weekend</div>';list.innerHTML='';hide('mark-actions');return;}
-  if (isHol(ds)){ban.innerHTML='<div class="alert aw">🎉 Holiday: '+holName(ds)+'</div>';list.innerHTML='';hide('mark-actions');return;}
-  ban.innerHTML='';
+
+  if (isWorkingDay(ds)) {
+    ban.innerHTML='<div class="alert ai">🗓️ Special Working Day: '+(APP.holidays.workingDays[ds]||'Working Day')+'</div>';
+  } else if (isWE(ds)) {
+    ban.innerHTML='<div class="alert aw">🏖️ Weekend — no classes</div>';
+    list.innerHTML=''; hide('mark-actions'); return;
+  } else if (isHol(ds)) {
+    ban.innerHTML='<div class="alert aw">🎉 Holiday: '+holName(ds)+'</div>';
+    list.innerHTML=''; hide('mark-actions'); return;
+  } else {
+    ban.innerHTML='';
+  }
+
   if (!APP.students.length){list.innerHTML='<div class="alert ai">No students yet.</div>';hide('mark-actions');return;}
   if (!TUTOR_MODE) {
     api('getAttendance',{subjectCode:APP.user.subjectCode,dateFrom:ds,dateTo:ds}).then(function(r){
@@ -427,29 +601,30 @@ function buildAttList(ds) {
   g('mark-list').innerHTML=html; show('mark-actions');
 }
 
-function setAtt(ds,roll,status) {
+function setAtt(ds,roll,status){
   if(!APP.attendance[ds])APP.attendance[ds]={};
   APP.attendance[ds][roll]=status;
   g('bp-'+roll).className=status==='P'?'ap':'';
   g('ba-'+roll).className=status==='A'?'aa':'';
 }
 
-function markAll(s) {
+function markAll(s){
   var ds=fmtDate(APP.currentDate);
   if(!APP.attendance[ds])APP.attendance[ds]={};
   APP.students.forEach(function(st){APP.attendance[ds][st.rollNo]=s;});
   buildAttList(ds);
 }
 
-function saveAttendance() {
+function saveAttendance(){
   var ds=fmtDate(APP.currentDate), rec=APP.attendance[ds]||{};
   var records=APP.students.map(function(st){return{rollNo:st.rollNo,name:st.name,status:rec[st.rollNo]||'A'};});
   api('saveAttendance',{date:ds,subjectCode:TUTOR_MODE?'GENERAL':APP.user.subjectCode,subjectName:TUTOR_MODE?'General':APP.user.subjectName,teacherEmail:APP.user.email,records:records}).then(function(r){
-    if(r.ok)toast('✅ Saved!'); else toast('❌ '+r.error);
+    if(r.ok)toast('✅ Saved to Google Drive!'); else toast('❌ '+r.error);
   });
 }
 
-function renderStudents() {
+// ── STUDENTS ──────────────────────────────────────────────────
+function renderStudents(){
   g('student-count').textContent=APP.students.length;
   if(!APP.students.length){g('student-list-ui').innerHTML='<div style="text-align:center;color:var(--gray-mid);padding:16px">No students yet.</div>';return;}
   g('student-list-ui').innerHTML=APP.students.map(function(st,i){
@@ -457,7 +632,7 @@ function renderStudents() {
   }).join('');
 }
 
-function addStudent() {
+function addStudent(){
   var data={rollNo:v('add-roll'),name:v('add-name'),phone:v('add-phone'),parentName:v('add-pname'),parentPhone:v('add-pphone'),parentEmail:v('add-pemail'),whatsapp:v('add-wa'),section:v('add-section')};
   if(!data.rollNo||!data.name||!data.parentName||!data.parentPhone)return toast('Roll No, Name, Parent Name & Phone required');
   api('addStudent',data).then(function(r){
@@ -466,7 +641,7 @@ function addStudent() {
   });
 }
 
-function removeStudent(rollNo) {
+function removeStudent(rollNo){
   if(!confirm('Remove?'))return;
   api('removeStudent',rollNo).then(function(r){
     if(r.ok){toast('Removed');APP.students=APP.students.filter(function(s){return s.rollNo!==rollNo;});renderStudents();}
@@ -474,7 +649,7 @@ function removeStudent(rollNo) {
   });
 }
 
-function openEdit(i) {
+function openEdit(i){
   var st=APP.students[i];
   ['roll','name','phone','pname','pphone','pemail','wa','section'].forEach(function(f,j){
     g('e-'+f).value=[st.rollNo,st.name,st.phone||'',st.parentName||'',st.parentPhone||'',st.parentEmail||'',st.whatsapp||'',st.section||''][j];
@@ -483,7 +658,7 @@ function openEdit(i) {
 }
 function closeEditModal(){hide('edit-modal');}
 
-function saveEditStudent() {
+function saveEditStudent(){
   var data={rollNo:v('e-roll'),name:v('e-name'),phone:v('e-phone'),parentName:v('e-pname'),parentPhone:v('e-pphone'),parentEmail:v('e-pemail'),whatsapp:v('e-wa'),section:v('e-section')};
   api('updateStudent',data).then(function(r){
     if(r.ok){toast('✅ Updated');closeEditModal();api('getStudents',null).then(function(s){if(s.ok){APP.students=s.students;renderStudents();}});}
@@ -491,7 +666,7 @@ function saveEditStudent() {
   });
 }
 
-function importStudents(e) {
+function importStudents(e){
   var file=e.target.files[0];if(!file)return;
   var ext=file.name.split('.').pop().toLowerCase();
   var reader=new FileReader();
@@ -518,13 +693,14 @@ function importStudents(e) {
   e.target.value='';
 }
 
-function buildSumSel() {
+// ── SUMMARY ───────────────────────────────────────────────────
+function buildSumSel(){
   if(!TUTOR_MODE)return;
   g('sum-sub').innerHTML=APP.courses.map(function(c){return'<option value="'+c.code+'">'+c.code+' – '+c.name+'</option>';}).join('');
   if(APP.courses.length)show('sum-sel');
 }
 
-function renderSummary() {
+function renderSummary(){
   var subCode=TUTOR_MODE?(g('sum-sub').value||(APP.courses[0]&&APP.courses[0].code)||'GENERAL'):APP.user.subjectCode;
   api('getAttendance',{subjectCode:subCode,dateFrom:'',dateTo:''}).then(function(r){
     if(!r.ok)return;
@@ -539,12 +715,12 @@ function renderSummary() {
     g('summary-list').innerHTML=sts.sort(function(a,b){return a.roll.localeCompare(b.roll,undefined,{numeric:true});}).map(function(st){
       var col=st.pct>=75?'#639922':st.pct>=60?'#BA7517':'#E24B4A';
       var tc=st.pct>=75?'#3B6D11':st.pct>=60?'#854F0B':'#A32D2D';
-      return '<div class="student-row"><span class="s-roll">'+st.roll+'</span><div style="flex:1"><div class="s-name">'+st.name+'</div><div class="progress"><div class="progress-fill" style="width:'+st.pct+'%;background:'+col+'"></div></div><div class="s-meta">'+st.p+'P/'+st.a+'A of '+total+'</div></div><span style="font-weight:600;font-size:14px;color:'+tc+';min-width:40px;text-align:right">'+st.pct+'%</span></div>';
+      return '<div class="student-row"><span class="s-roll">'+st.roll+'</span><div style="flex:1"><div class="s-name">'+st.name+'</div><div class="progress"><div class="progress-fill" style="width:'+st.pct+'%;background:'+col+'"></div></div><div class="s-meta">'+st.p+'P / '+st.a+'A of '+total+'</div></div><span style="font-weight:600;font-size:14px;color:'+tc+';min-width:40px;text-align:right">'+st.pct+'%</span></div>';
     }).join('')||'<div style="text-align:center;color:var(--gray-mid);padding:16px">No data yet.</div>';
   });
 }
 
-function exportCSV() {
+function exportCSV(){
   var subCode=TUTOR_MODE?(g('sum-sub').value||(APP.courses[0]&&APP.courses[0].code)||'GENERAL'):APP.user.subjectCode;
   api('getAttendance',{subjectCode:subCode,dateFrom:'',dateTo:''}).then(function(r){
     if(!r.ok)return;
@@ -563,13 +739,14 @@ function exportCSV() {
   });
 }
 
-function exportPDF() {
+function exportPDF(){
   var w=window.open('','_blank');
   w.document.write('<html><head><style>body{font-family:Arial,sans-serif;font-size:13px;margin:20px}.student-row{display:flex;padding:6px 0;border-bottom:1px solid #eee}.s-roll{min-width:70px;color:#888}.s-name{flex:1}.progress{display:none}@media print{button{display:none}}</style></head><body><h2 style="color:#1a6b3c">UC Physics — Attendance</h2><button onclick="window.print()" style="padding:6px 16px;background:#1a6b3c;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-bottom:12px">🖨️ Print</button>'+g('summary-list').innerHTML+'</body></html>');
   w.document.close();
 }
 
-function addTeacher() {
+// ── TEACHERS ──────────────────────────────────────────────────
+function addTeacher(){
   var data={email:v('t-email').toLowerCase().trim(),name:v('t-name'),password:v('t-pwd'),phone:v('t-phone'),subjectCode:v('t-code'),subjectName:v('t-subj')};
   if(!data.email||!data.name||!data.password||!data.subjectCode||!data.subjectName)return toast('All fields except phone required');
   api('addTeacher',data).then(function(r){
@@ -578,41 +755,192 @@ function addTeacher() {
   });
 }
 
-function renderTeachers() {
+function renderTeachers(){
   if(!TUTOR_MODE)return;
-  g('teacher-list-ui').innerHTML=APP.teachers.length?APP.teachers.map(function(t){
-    return '<div class="student-row"><div style="flex:1"><div class="s-name">'+t.name+'</div><div class="s-meta">'+t.email+' · '+t.subjectCode+'</div></div><button class="btn btn-sm btn-danger" onclick="removeTeacher(\''+t.email+'\')">🗑️</button></div>';
+  var el=g('teacher-list-ui');if(!el)return;
+  el.innerHTML=APP.teachers.length?APP.teachers.map(function(t){
+    return '<div class="student-row"><div style="flex:1"><div class="s-name">'+t.name+'</div><div class="s-meta">'+t.email+' · '+t.subjectCode+' – '+t.subjectName+(t.phone?' · 📞 '+t.phone:'')+'</div></div><button class="btn btn-sm btn-danger" onclick="removeTeacher(\''+t.email+'\')">🗑️</button></div>';
   }).join(''):'<div style="text-align:center;color:var(--gray-mid);padding:12px">No teachers yet.</div>';
 }
 
-function removeTeacher(email) {
+function removeTeacher(email){
   if(!confirm('Remove?'))return;
   api('removeTeacher',email).then(function(r){if(r.ok){toast('Removed');APP.teachers=APP.teachers.filter(function(t){return t.email!==email;});renderTeachers();}else toast('❌ '+r.error);});
 }
 
-function addHoliday() {
+// ── HOLIDAYS ──────────────────────────────────────────────────
+function addHoliday(){
   var d=v('hol-date'),n=v('hol-name');if(!d||!n)return toast('Enter date and name');
-  api('addHoliday',{date:d,name:n}).then(function(r){if(r.ok){toast('✅ Added');g('hol-date').value='';g('hol-name').value='';APP.holidays.custom[d]=n;renderHolidays();}else toast('❌ '+r.error);});
+  api('addHoliday',{date:d,name:n}).then(function(r){
+    if(r.ok){
+      toast('✅ Marked as holiday');
+      g('hol-date').value='';g('hol-name').value='';
+      APP.holidays.custom[d]=n;
+      if(APP.holidays.workingDays)delete APP.holidays.workingDays[d];
+      renderHolidays(); renderCal();
+    } else toast('❌ '+r.error);
+  });
 }
 
-function renderHolidays() {
-  var entries=Object.entries(APP.holidays.custom||{});
-  g('hol-list').innerHTML=entries.length?entries.map(function(e){return'<div class="student-row" style="padding:6px 0"><span class="badge bh">'+e[0]+'</span><span style="flex:1;margin-left:8px;font-size:13px">'+e[1]+'</span></div>';}).join(''):'<div style="font-size:12px;color:var(--gray-mid)">None added.</div>';
+function addWorkingDay(){
+  var d=v('work-date'),n=v('work-note')||'Working Day';
+  if(!d)return toast('Enter date');
+  api('addWorkingDay',{date:d,note:n}).then(function(r){
+    if(r.ok){
+      toast('✅ Marked as working day');
+      g('work-date').value='';g('work-note').value='';
+      if(!APP.holidays.workingDays)APP.holidays.workingDays={};
+      APP.holidays.workingDays[d]=n;
+      delete APP.holidays.custom[d];
+      renderHolidays(); renderCal();
+    } else toast('❌ '+r.error);
+  });
 }
 
-function changePassword() {
+function removeHoliday(date){
+  api('removeHoliday',date).then(function(r){
+    if(r.ok){toast('Removed');delete APP.holidays.custom[date];renderHolidays();renderCal();}
+    else toast('❌ '+r.error);
+  });
+}
+
+function removeWorkingDay(date){
+  api('removeWorkingDay',date).then(function(r){
+    if(r.ok){toast('Removed');if(APP.holidays.workingDays)delete APP.holidays.workingDays[date];renderHolidays();renderCal();}
+    else toast('❌ '+r.error);
+  });
+}
+
+function renderHolidays(){
+  var hentries=Object.entries(APP.holidays.custom||{});
+  g('hol-list').innerHTML=hentries.length?hentries.map(function(e){
+    return '<div class="student-row" style="padding:6px 0"><span class="badge bh">'+e[0]+'</span><span style="flex:1;margin-left:8px;font-size:13px">'+e[1]+'</span><button class="btn btn-sm btn-danger" onclick="removeHoliday(\''+e[0]+'\')">✕</button></div>';
+  }).join(''):'<div style="font-size:12px;color:var(--gray-mid)">None added.</div>';
+
+  var wentries=Object.entries(APP.holidays.workingDays||{});
+  g('work-list').innerHTML=wentries.length?wentries.map(function(e){
+    return '<div class="student-row" style="padding:6px 0"><span class="badge bw">'+e[0]+'</span><span style="flex:1;margin-left:8px;font-size:13px">'+e[1]+'</span><button class="btn btn-sm btn-danger" onclick="removeWorkingDay(\''+e[0]+'\')">✕</button></div>';
+  }).join(''):'<div style="font-size:12px;color:var(--gray-mid)">None added.</div>';
+}
+
+// ── CALENDAR ──────────────────────────────────────────────────
+function calNav(n){calViewMonth.setMonth(calViewMonth.getMonth()+n);renderCal();}
+
+function renderCal(){
+  var y=calViewMonth.getFullYear(), m=calViewMonth.getMonth();
+  g('cal-month-label').textContent=calViewMonth.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  var first=new Date(y,m,1).getDay();
+  var days=new Date(y,m+1,0).getDate();
+  var todayStr=fmtDate(new Date());
+  var html='';
+  for(var i=0;i<first;i++) html+='<div class="cal-day other"></div>';
+  for(var d=1;d<=days;d++){
+    var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var cls='cal-day';
+    var title='';
+    if(ds===todayStr) cls+=' today';
+    if(isWorkingDay(ds)){cls+=' working';title=APP.holidays.workingDays[ds]||'Working Day';}
+    else if(APP.holidays.custom[ds]){cls+=' holiday';title=APP.holidays.custom[ds];}
+    else if(APP.holidays.kerala[ds]){cls+=' holiday';title=APP.holidays.kerala[ds];}
+    else if(isWE(ds)){cls+=' weekend';}
+    html+='<div class="'+cls+'" title="'+title+'" onclick="openDayModal(\''+ds+'\')">'+d+'</div>';
+  }
+  g('cal-grid').innerHTML=html;
+}
+
+// ── DAY MODAL (click on calendar day) ────────────────────────
+function openDayModal(ds){
+  dayModalDate=ds;
+  var d=new Date(ds+'T00:00:00');
+  g('day-modal-title').textContent=d.toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  g('day-modal-name').value='';
+  g('day-modal-name-field').classList.add('hidden');
+
+  var isWd=isWorkingDay(ds);
+  var isH=isHol(ds);
+  var isW=isWE(ds);
+
+  var status='Regular working day';
+  if(isWd) status='✅ Marked as working day: '+(APP.holidays.workingDays[ds]||'');
+  else if(APP.holidays.custom[ds]) status='🔴 Custom holiday: '+APP.holidays.custom[ds];
+  else if(APP.holidays.kerala[ds]) status='🔴 Kerala holiday: '+APP.holidays.kerala[ds];
+  else if(isW) status='Weekend';
+  g('day-modal-status').textContent=status;
+
+  // Show appropriate buttons
+  g('day-modal-holiday-btn').style.display='block';
+  g('day-modal-working-btn').style.display='block';
+  g('day-modal-remove-btn').style.display='none';
+
+  if(isWd){
+    g('day-modal-working-btn').style.display='none';
+    g('day-modal-remove-btn').style.display='block';
+    g('day-modal-remove-btn').textContent='🗑️ Remove working day override';
+    dayModalAction='remove-working';
+  } else if(APP.holidays.custom[ds]){
+    g('day-modal-holiday-btn').style.display='none';
+    g('day-modal-remove-btn').style.display='block';
+    g('day-modal-remove-btn').textContent='🗑️ Remove holiday';
+    dayModalAction='remove-holiday';
+  }
+
+  show('day-modal');
+}
+
+function dayModalAddHoliday(){
+  dayModalAction='add-holiday';
+  g('day-modal-name').value='';
+  show('day-modal-name-field');
+}
+
+function dayModalAddWorking(){
+  dayModalAction='add-working';
+  g('day-modal-name').value='Special Working Day';
+  show('day-modal-name-field');
+}
+
+function dayModalRemove(){
+  if(dayModalAction==='remove-holiday'){
+    removeHoliday(dayModalDate);
+  } else if(dayModalAction==='remove-working'){
+    removeWorkingDay(dayModalDate);
+  }
+  closeDayModal();
+}
+
+function dayModalConfirm(){
+  var name=g('day-modal-name').value.trim()||'Holiday';
+  if(dayModalAction==='add-holiday'){
+    api('addHoliday',{date:dayModalDate,name:name}).then(function(r){
+      if(r.ok){APP.holidays.custom[dayModalDate]=name;if(APP.holidays.workingDays)delete APP.holidays.workingDays[dayModalDate];toast('✅ Marked as holiday');renderHolidays();renderCal();}
+      else toast('❌ '+r.error);
+    });
+  } else if(dayModalAction==='add-working'){
+    api('addWorkingDay',{date:dayModalDate,note:name}).then(function(r){
+      if(r.ok){if(!APP.holidays.workingDays)APP.holidays.workingDays={};APP.holidays.workingDays[dayModalDate]=name;delete APP.holidays.custom[dayModalDate];toast('✅ Marked as working day');renderHolidays();renderCal();}
+      else toast('❌ '+r.error);
+    });
+  }
+  closeDayModal();
+}
+
+function closeDayModal(){hide('day-modal');}
+
+// ── SETTINGS MISC ─────────────────────────────────────────────
+function changePassword(){
   var pwd=v('new-pwd');if(!pwd)return toast('Enter password');
   api('changePassword',{email:APP.user.email,newPassword:pwd}).then(function(r){if(r.ok){toast('✅ Updated');g('new-pwd').value='';}else toast('❌ '+r.error);});
 }
 
-function generateParentReport() {
+// ── PARENT REPORT ─────────────────────────────────────────────
+function generateParentReport(){
   var date=g('report-date').value;if(!date)return toast('Select a date');
   g('report-output').innerHTML='<div class="alert ai">Generating…</div>';
   api('generateParentReport',date).then(function(r){
     if(!r.ok){g('report-output').innerHTML='<div class="alert ae">'+r.error+'</div>';return;}
-    var html='<div class="card"><div class="card-title">'+date+' — '+r.totalStudents+' students</div>';
+    var html='<div class="card"><div class="card-title">'+date+' — '+r.totalStudents+' students</div><div class="alert ai" style="margin-bottom:10px">Tap WhatsApp to send directly.</div>';
     r.messages.forEach(function(m){
-      html+='<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f0f0f0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+m.rollNo+' · '+(m.parentName||'—')+' · 📞 '+(m.parentPhone||'—')+'</div><div class="wa-msg">'+m.message+'</div><div class="btn-row"><button class="btn btn-sm" onclick="copyMsg(\''+encodeURIComponent(m.message)+'\')">📋 Copy</button><button class="btn btn-sm" style="background:#25d366;color:#fff;border-color:#25d366" onclick="openWA(\''+(m.whatsapp||m.parentPhone||'')+'\',\''+encodeURIComponent(m.message)+'\')">💬 WhatsApp</button></div></div>';
+      html+='<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f0f0f0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+m.rollNo+' · '+(m.parentName||'—')+' · 📞 '+(m.parentPhone||'—')+(m.whatsapp&&m.whatsapp!==m.parentPhone?' · 💬 '+m.whatsapp:'')+'</div><div class="wa-msg">'+m.message+'</div><div class="btn-row"><button class="btn btn-sm" onclick="copyMsg(\''+encodeURIComponent(m.message)+'\')">📋 Copy</button><button class="btn btn-sm" style="background:#25d366;color:#fff;border-color:#25d366" onclick="openWA(\''+(m.whatsapp||m.parentPhone||'')+'\',\''+encodeURIComponent(m.message)+'\')">💬 WhatsApp</button></div></div>';
     });
     html+='<button class="btn btn-primary" onclick="copyAll()">📋 Copy All</button></div>';
     g('report-output').innerHTML=html;
@@ -624,27 +952,29 @@ function copyMsg(enc){navigator.clipboard.writeText(decodeURIComponent(enc)).the
 function openWA(phone,enc){window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+enc,'_blank');}
 function copyAll(){if(window._allMsgs)navigator.clipboard.writeText(window._allMsgs).then(function(){toast('All copied!');});}
 
-function showParentView(){['app','login-screen','setup-screen','loading'].forEach(hide);show('parent-screen');}
+// ── PARENT VIEW ───────────────────────────────────────────────
+function showParentView(){['app','login-screen','setup-screen','loading','forgot-screen'].forEach(hide);show('parent-screen');}
 function hideParentView(){hide('parent-screen');show('login-screen');}
 
-function fetchParentReport() {
+function fetchParentReport(){
   var roll=g('parent-roll').value.trim(), phone=g('parent-phone').value.trim();
   if(!roll||!phone)return toast('Enter phone and roll number');
   g('parent-result').innerHTML='<div class="alert ai">Verifying…</div>';
   api('getStudentReport',{rollNo:roll,phone:phone}).then(function(r){
     if(!r.ok){g('parent-result').innerHTML='<div class="alert ae">❌ '+r.error+'</div>';return;}
     var st=r.student;
-    var html='<div style="background:var(--green);color:#fff;border-radius:var(--radius);padding:14px;margin-bottom:12px"><div style="font-size:18px;font-weight:700">'+st.name+'</div><div style="font-size:13px;opacity:0.85">'+st.rollNo+'</div><div style="font-size:12px;opacity:0.7;margin-top:4px">👨‍👩‍👧 '+(st.parentName||'—')+' 📞 '+(st.parentPhone||'—')+'</div></div>';
-    if(!r.subjects.length)html+='<div class="alert aw">No data yet.</div>';
+    var html='<div style="background:var(--green);color:#fff;border-radius:var(--radius);padding:14px;margin-bottom:12px"><div style="font-size:18px;font-weight:700">'+st.name+'</div><div style="font-size:13px;opacity:0.85">'+st.rollNo+(st.section?' · Section '+st.section:'')+'</div><div style="font-size:12px;opacity:0.7;margin-top:4px">👨‍👩‍👧 '+(st.parentName||'—')+' · 📞 '+(st.parentPhone||'—')+'</div></div>';
+    if(!r.subjects.length)html+='<div class="alert aw">No attendance data yet.</div>';
     r.subjects.forEach(function(subj){
       var col=subj.pct>=75?'#639922':subj.pct>=60?'#BA7517':'#E24B4A';
       var tc=subj.pct>=75?'#3B6D11':subj.pct>=60?'#854F0B':'#A32D2D';
-      html+='<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1"><b>'+subj.code+'</b><div style="font-size:12px;color:var(--gray-mid)">'+subj.name+'</div></div><span style="font-size:22px;font-weight:700;color:'+tc+'">'+subj.pct+'%</span></div><div class="progress"><div class="progress-fill" style="width:'+subj.pct+'%;background:'+col+'"></div></div><div style="font-size:12px;color:var(--gray-mid);margin-top:4px">'+subj.present+' present / '+(subj.total-subj.present)+' absent</div>'+(subj.pct<75?'<div style="font-size:11px;color:var(--red);font-weight:600;margin-top:4px">⚠️ Below 75%</div>':'')+'<div style="margin-top:8px;max-height:120px;overflow-y:auto">'+subj.records.sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,20).map(function(rec){return'<span class="badge '+(rec.status==='P'?'bp':'ba')+'" style="margin:2px">'+rec.date+' '+(rec.status==='P'?'✅':'❌')+'</span>';}).join('')+'</div></div>';
+      html+='<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1"><b>'+subj.code+'</b><div style="font-size:12px;color:var(--gray-mid)">'+subj.name+(subj.teacherName?' · '+subj.teacherName:'')+'</div></div><span style="font-size:22px;font-weight:700;color:'+tc+'">'+subj.pct+'%</span></div><div class="progress"><div class="progress-fill" style="width:'+subj.pct+'%;background:'+col+'"></div></div><div style="font-size:12px;color:var(--gray-mid);margin-top:4px">'+subj.present+' present / '+(subj.total-subj.present)+' absent of '+subj.total+' classes</div>'+(subj.pct<75?'<div style="font-size:11px;color:var(--red);font-weight:600;margin-top:4px">⚠️ Below 75% — attendance shortage</div>':'')+'<div style="margin-top:8px;max-height:120px;overflow-y:auto">'+subj.records.sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,20).map(function(rec){return'<span class="badge '+(rec.status==='P'?'bp':'ba')+'" style="margin:2px">'+rec.date+' '+(rec.status==='P'?'✅':'❌')+'</span>';}).join('')+'</div></div>';
     });
     g('parent-result').innerHTML=html;
   });
 }
 
+// ── UTILS ─────────────────────────────────────────────────────
 function v(id){return(g(id)||{}).value||'';}
 function g(id){return document.getElementById(id);}
 function show(id){var el=g(id);if(el)el.classList.remove('hidden');}
