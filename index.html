@@ -706,7 +706,7 @@ function buildEnrollSubjectSelector(){
     var minors=getMinorCourses();
     if(!minors.length){
       sel.innerHTML='<option>No minor subjects added yet</option>';
-      g('enroll-list').innerHTML='<div style="font-size:13px;color:var(--gray-mid);text-align:center;padding:16px">Add minor subjects first in the teacher section above.</div>';
+      g('enroll-list').innerHTML='<div style="font-size:13px;color:var(--gray-mid);text-align:center;padding:16px">Add minor subjects using the Add Subject Teacher section below.</div>';
       return;
     }
     sel.innerHTML=minors.map(function(c){
