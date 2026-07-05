@@ -1342,6 +1342,9 @@ function g(id){return document.getElementById(id);}
 function show(id){var el=g(id);if(el)el.classList.remove('hidden');}
 function hide(id){var el=g(id);if(el)el.classList.add('hidden');}
 function toast(msg){var t=g('toast');t.textContent=msg;t.style.opacity='1';clearTimeout(window._tt);window._tt=setTimeout(function(){t.style.opacity='0';},3000);}
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/ucphysics_attendance/sw.js');
+}
 </script>
 </body>
 </html>
