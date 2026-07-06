@@ -1216,10 +1216,10 @@ function addTeacher(){
 function renderTeachers(){
   if(!TUTOR_MODE)return;
   var el=g('teacher-list-ui');if(!el)return;
-  el.innerHTML=APP.teachers.length?APP.teachers.map(function(t){
+  el.innerHTML=APP.teachers.length?APP.teachers.map(function(t,i){
     var course=APP.courses.find(function(c){return c.code===t.subjectCode;});
     var typeLabel=course&&course.type==='minor'?'<span class="minor-badge">Minor</span>':'';
-    return '<div class="student-row"><div style="flex:1"><div class="s-name">'+t.name+' '+typeLabel+'</div><div class="s-meta">'+t.email+' · '+t.subjectCode+' – '+t.subjectName+(t.phone?' · 📞 '+t.phone:'')+'</div></div><button class="btn btn-sm btn-danger" onclick="removeTeacher(\''+t.email+'\')">🗑️</button></div>';
+    return '<div class="student-row"><div style="flex:1"><div class="s-name">'+t.name+' '+typeLabel+'</div><div class="s-meta">'+t.email+' · '+t.subjectCode+' – '+t.subjectName+(t.phone?' · 📞 '+t.phone:'')+'</div></div><div style="display:flex;gap:4px"><button class="btn btn-sm" onclick="openEditTeacher('+i+')">✏️</button><button class="btn btn-sm btn-danger" onclick="removeTeacher(\''+t.email+'\')">🗑️</button></div></div>';
   }).join(''):'<div style="text-align:center;color:var(--gray-mid);padding:12px">No teachers yet.</div>';
 }
 
@@ -1228,6 +1228,64 @@ function removeTeacher(email){
   api('removeTeacher',email).then(function(r){if(r.ok){toast('Removed');APP.teachers=APP.teachers.filter(function(t){return t.email!==email;});renderTeachers();}else toast('❌ '+r.error);});
 }
 
+function openEditTeacher(i){
+  var t=APP.teachers[i];
+  var course=APP.courses.find(function(c){return c.code===t.subjectCode;});
+  g('et-email').value=t.email;
+  g('et-name').value=t.name;
+  g('et-phone').value=t.phone||'';
+  g('et-code').value=t.subjectCode;
+  g('et-subj').value=t.subjectName;
+  g('et-type').value=course?course.type:'main';
+  g('et-pwd').value='';
+  g('et-msg').innerHTML='';
+  show('edit-teacher-modal');
+}
+
+function closeEditTeacher(){
+  hide('edit-teacher-modal');
+}
+
+function saveEditTeacher(){
+  var email=v('et-email');
+  var name=v('et-name');
+  var phone=v('et-phone');
+  var code=v('et-code');
+  var subj=v('et-subj');
+  var type=v('et-type');
+  var pwd=v('et-pwd');
+  if(!name||!code||!subj)return toast('Name, Subject Code and Name required');
+  g('et-msg').innerHTML='<div class="alert ai">Saving…</div>';
+  // Step 1 — Remove old teacher entry
+  api('removeTeacher',email).then(function(r){
+    if(!r.ok&&r.error!=='Not found'){
+      g('et-msg').innerHTML='<div class="alert ae">❌ '+r.error+'</div>';return;
+    }
+    // Step 2 — Add updated teacher entry
+    var data={
+      email:email, name:name, phone:phone,
+      subjectCode:code, subjectName:subj,
+      courseType:type,
+      password:pwd||'KEEP_EXISTING'
+    };
+    api('addTeacherUpdate',data).then(function(r2){
+      if(r2.ok){
+        toast('✅ Teacher updated');
+        closeEditTeacher();
+        // Refresh teachers and courses
+        Promise.all([
+          api('getTeachers',null),
+          api('getCourses',null)
+        ]).then(function(res){
+          if(res[0].ok){APP.teachers=res[0].teachers;renderTeachers();}
+          if(res[1].ok){APP.courses=res[1].courses;buildSumSel();buildMarkSubjectSelector();buildEnrollSubjectSelector();buildRecordsSubjectSelector();}
+        });
+      } else {
+        g('et-msg').innerHTML='<div class="alert ae">❌ '+r2.error+'</div>';
+      }
+    });
+  });
+}  
 // ── HOLIDAYS ──────────────────────────────────────────────────
 function addHoliday(){
   var d=v('hol-date'),n=v('hol-name');if(!d||!n)return toast('Enter date and name');
