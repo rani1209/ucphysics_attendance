@@ -440,6 +440,29 @@ input:focus,select:focus{border-color:var(--green)}
   </div>
 </div>
 
+<!-- EDIT TEACHER MODAL -->
+<div class="modal-bg hidden" id="edit-teacher-modal">
+  <div class="modal">
+    <div style="font-size:16px;font-weight:600;margin-bottom:14px">Edit Teacher</div>
+    <div class="field"><label>Email (cannot change)</label><input id="et-email" readonly style="background:#f5f5f5"></div>
+    <div class="field"><label>Name *</label><input id="et-name"></div>
+    <div class="field"><label>Phone</label><input id="et-phone" type="tel"></div>
+    <div class="field"><label>Subject Code *</label><input id="et-code"></div>
+    <div class="field"><label>Subject Name *</label><input id="et-subj"></div>
+    <div class="field"><label>Course Type *</label>
+      <select id="et-type">
+        <option value="main">Main Course</option>
+        <option value="minor">Minor</option>
+      </select>
+    </div>
+    <div class="field"><label>Reset Password (leave blank to keep current)</label><input id="et-pwd" type="text" placeholder="Enter new password or leave blank"></div>
+    <div id="et-msg" style="margin-bottom:8px"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveEditTeacher()">💾 Save Changes</button>
+      <button class="btn" onclick="closeEditTeacher()">Cancel</button>
+    </div>
+  </div>
+</div>  
 <!-- DAY MODAL -->
 <div class="modal-bg hidden" id="day-modal">
   <div class="modal">
