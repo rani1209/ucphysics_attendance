@@ -1,4 +1,4 @@
-<!-- UC Physics Attendance Manager v8 -->
+<!-- UC Physics Attendance Manager v9 (GENERAL periodwise dashboard) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -123,6 +123,9 @@ input:focus,select:focus{border-color:var(--green)}
 .enroll-roll{font-size:12px;color:var(--gray-mid);min-width:52px}
 .minor-badge{font-size:10px;background:var(--blue-light);color:var(--blue);padding:2px 6px;border-radius:10px;font-weight:600}
 .subj-info-bar{background:var(--green-light);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:var(--green-dark);margin-bottom:12px;font-weight:500}
+.gen-row{cursor:pointer}
+.gen-row:active{background:var(--gray-light)}
+.tutor-flag{font-size:10px;background:var(--amber-light);color:var(--amber);padding:2px 6px;border-radius:10px;font-weight:600;margin-left:6px}
 </style>
 </head>
 <body>
@@ -230,8 +233,8 @@ input:focus,select:focus{border-color:var(--green)}
     <div id="mark-subject-selector" class="hidden" style="margin-bottom:8px">
       <div class="field"><label>Subject</label><select id="mark-subject-select" onchange="renderDay()"></select></div>
     </div>
-    <!-- Period selector -->
-    <div style="margin-bottom:10px">
+    <!-- Period selector (hidden entirely when GENERAL is selected) -->
+    <div id="period-bar-wrap" style="margin-bottom:10px">
       <div style="font-size:12px;font-weight:500;color:var(--gray);margin-bottom:6px">Select Period:</div>
       <div class="period-bar" id="period-bar"></div>
     </div>
@@ -489,6 +492,26 @@ input:focus,select:focus{border-color:var(--green)}
   </div>
 </div>
 
+<!-- GENERAL PERIOD MODAL (view/edit a period's attendance, or mark an unmarked one) -->
+<div class="modal-bg hidden" id="general-period-modal">
+  <div class="modal">
+    <div style="font-size:16px;font-weight:600;margin-bottom:8px" id="gp-title">—</div>
+    <div id="gp-course-picker" class="hidden">
+      <div class="field"><label>Select Subject</label><select id="gp-course-select"></select></div>
+      <button class="btn btn-primary" onclick="gpLoadCourseStudents()">Continue</button>
+    </div>
+    <div id="gp-student-list"></div>
+    <div id="gp-actions" class="hidden">
+      <div class="btn-row" style="margin-bottom:8px">
+        <button class="btn" onclick="gpMarkAll('P')">✅ All Present</button>
+        <button class="btn btn-danger" onclick="gpMarkAll('A')">❌ All Absent</button>
+      </div>
+      <button class="btn btn-primary" onclick="gpSave()">💾 Save</button>
+    </div>
+    <button class="btn" onclick="hide('general-period-modal')">Cancel</button>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 var SCRIPT_URL='https://script.google.com/macros/s/AKfycbyFP7-iuSMfheHdWKiPUWJ-fiviclWO03naROSM8akEt75NqiZ7MBzTormawILgkcb3Xg/exec';
@@ -499,6 +522,11 @@ var dayModalDate='',dayModalAction='';
 var PERIODS=['P0','P1','P2','P3','P4','P5','P6'];
 var currentPeriod='P1';
 var pendingSaveData=null;
+
+// GENERAL tab state
+var GENERAL_STATE={date:'',period:''};
+var GP_ATT={};
+var GP_COURSE=null;
 
 function api(action,payload){
   return new Promise(function(resolve){
@@ -838,14 +866,22 @@ function renderDay(){
   var ds=fmtDate(APP.currentDate);
   g('day-title').textContent=APP.currentDate.toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   var subj=getCurrentMarkSubject();
-  g('day-sub').textContent=APP.activeSemester+' · '+subj.code+' · '+currentPeriod;
+  var isGeneral=(subj.code==='GENERAL');
+  g('day-sub').textContent=APP.activeSemester+' · '+subj.code+(isGeneral?'':' · '+currentPeriod);
   var ban=g('holiday-banner'),list=g('mark-list');
-  hide('mark-actions');hide('already-saved-banner');
+  hide('mark-actions');hide('already-saved-banner');hide('minor-banner');
+
+  if(isGeneral){hide('period-bar-wrap');}else{show('period-bar-wrap');}
 
   if(isWorkingDay(ds)){ban.innerHTML='<div class="alert ai">🗓️ Special Working Day: '+(APP.holidays.workingDays[ds]||'')+'</div>';}
   else if(isWE(ds)){ban.innerHTML='<div class="alert aw">🏖️ Weekend — no classes</div>';list.innerHTML='';return;}
   else if(isHol(ds)){ban.innerHTML='<div class="alert aw">🎉 Holiday: '+holName(ds)+'</div>';list.innerHTML='';return;}
   else ban.innerHTML='';
+
+  if(isGeneral){
+    renderGeneralDay(ds);
+    return;
+  }
 
   if(!APP.students.length){list.innerHTML='<div class="alert ai">No students yet.</div>';return;}
 
@@ -959,6 +995,118 @@ function doSaveAttendance(overwrite){
   pendingSaveData.overwrite=overwrite;
   api('saveAttendance',pendingSaveData).then(function(r){
     if(r.ok){toast('✅ Saved — '+APP.activeSemester+' / '+pendingSaveData.subjectCode+' / '+currentPeriod);pendingSaveData=null;hide('already-saved-banner');}
+    else toast('❌ '+r.error);
+  });
+}
+
+// ── GENERAL TAB — periodwise dashboard (Class Tutor) ──────────
+function renderGeneralDay(ds){
+  var list=g('mark-list');
+  list.innerHTML='<div style="text-align:center;padding:16px;color:var(--gray-mid)">Loading day view…</div>';
+  api('getGeneralDayView',{date:ds,semester:APP.activeSemester}).then(function(r){
+    if(!r.ok){list.innerHTML='<div class="alert ae">'+r.error+'</div>';return;}
+    var html='';
+    r.periods.forEach(function(p){
+      if(p.marked){
+        var pct=p.total>0?Math.round(p.present/p.total*100):0;
+        var col=pct>=75?'#3B6D11':pct>=60?'#854F0B':'#A32D2D';
+        html+='<div class="student-row gen-row" onclick="openGeneralPeriod(\''+ds+'\',\''+p.period+'\')">'
+          +'<span class="s-roll">'+p.period+'</span>'
+          +'<div style="flex:1"><div class="s-name">'+p.subjectName+' <span style="color:var(--gray-mid);font-weight:400">('+p.subjectCode+')</span></div>'
+          +'<div class="s-meta">'+p.present+' present / '+p.absent+' absent of '+p.total+'</div></div>'
+          +'<span style="font-weight:700;color:'+col+'">'+pct+'%</span></div>';
+      } else {
+        html+='<div class="student-row gen-row" style="color:var(--gray-mid)" onclick="openGeneralPeriod(\''+ds+'\',\''+p.period+'\')">'
+          +'<span class="s-roll">'+p.period+'</span>'
+          +'<div style="flex:1"><div class="s-name">No attendance entered</div></div>'
+          +'<span style="font-size:18px;color:var(--green)">＋</span></div>';
+      }
+    });
+    list.innerHTML=html;
+  });
+}
+
+function openGeneralPeriod(date,period){
+  GENERAL_STATE={date:date,period:period};
+  g('gp-title').textContent=date+' · '+period+' · Loading…';
+  show('general-period-modal');
+  api('getPeriodDetail',{date:date,period:period,semester:APP.activeSemester}).then(function(r){
+    if(r.ok){
+      renderGeneralModal(true,r.subjectCode,r.subjectName,r.students);
+    } else {
+      renderGeneralModal(false);
+    }
+  });
+}
+
+function renderGeneralModal(marked,subjectCode,subjectName,students){
+  GP_ATT={};
+  if(marked){
+    g('gp-title').textContent=GENERAL_STATE.date+' · '+GENERAL_STATE.period+' · '+subjectCode+' – '+subjectName;
+    hide('gp-course-picker');
+    GP_COURSE=subjectCode;
+    students.forEach(function(st){GP_ATT[st.rollNo]=st.status||'';});
+    buildGPList(students);
+    show('gp-actions');
+  } else {
+    g('gp-title').textContent=GENERAL_STATE.date+' · '+GENERAL_STATE.period+' · Not marked yet';
+    GP_COURSE=null;
+    show('gp-course-picker');
+    g('gp-student-list').innerHTML='';
+    hide('gp-actions');
+    var opts=APP.courses.map(function(c){return'<option value="'+c.code+'">'+c.code+' – '+c.name+(c.type==='minor'?' [Minor]':'')+'</option>';}).join('');
+    g('gp-course-select').innerHTML=opts||'<option value="">No courses added yet</option>';
+  }
+}
+
+function gpLoadCourseStudents(){
+  var code=g('gp-course-select').value;
+  if(!code)return toast('No course selected');
+  var course=APP.courses.find(function(c){return c.code===code;});
+  GP_COURSE=code;
+  var isMinor=course&&course.type==='minor';
+  var p=isMinor?api('getEnrolledStudents',{subjectCode:code,semester:APP.activeSemester}):Promise.resolve({ok:true,students:APP.students});
+  p.then(function(r){
+    var students=(r.ok?r.students:[]).map(function(st){return{rollNo:st.rollNo,name:st.name,status:''};});
+    students.forEach(function(st){GP_ATT[st.rollNo]='';});
+    buildGPList(students);
+    show('gp-actions');
+  });
+}
+
+function buildGPList(students){
+  var html='';
+  students.forEach(function(st){
+    var s=GP_ATT[st.rollNo]||'';
+    html+='<div class="student-row"><span class="s-roll">'+st.rollNo+'</span><div style="flex:1"><div class="s-name">'+st.name+'</div></div><div class="att-toggle"><button id="gp-bp-'+st.rollNo+'" class="'+(s==='P'?'ap':'')+'" onclick="gpSetAtt(\''+st.rollNo+'\',\'P\')">P</button><button id="gp-ba-'+st.rollNo+'" class="'+(s==='A'?'aa':'')+'" onclick="gpSetAtt(\''+st.rollNo+'\',\'A\')">A</button><button id="gp-bn-'+st.rollNo+'" class="'+(s===''?'an':'')+'" onclick="gpSetAtt(\''+st.rollNo+'\',\'\')">—</button></div></div>';
+  });
+  g('gp-student-list').innerHTML=html;
+}
+
+function gpSetAtt(roll,status){
+  GP_ATT[roll]=status;
+  g('gp-bp-'+roll).className=status==='P'?'ap':'';
+  g('gp-ba-'+roll).className=status==='A'?'aa':'';
+  g('gp-bn-'+roll).className=status===''?'an':'';
+}
+
+function gpMarkAll(s){
+  Object.keys(GP_ATT).forEach(function(roll){
+    GP_ATT[roll]=s;
+    if(g('gp-bp-'+roll)){
+      g('gp-bp-'+roll).className=s==='P'?'ap':'';
+      g('gp-ba-'+roll).className=s==='A'?'aa':'';
+      g('gp-bn-'+roll).className=s===''?'an':'';
+    }
+  });
+}
+
+function gpSave(){
+  if(!GP_COURSE)return toast('Select a subject first');
+  var records=Object.keys(GP_ATT).map(function(roll){return{rollNo:roll,name:'',status:GP_ATT[roll]||''};});
+  var payload={date:GENERAL_STATE.date,subjectCode:GP_COURSE,subjectName:'',teacherEmail:APP.user.email,records:records,semester:APP.activeSemester,period:GENERAL_STATE.period,overwrite:true,asTutor:true,tutorEmail:APP.user.email};
+  api('saveAttendance',payload).then(function(r){
+    if(r.ok){toast('✅ Saved by Class Tutor');hide('general-period-modal');renderGeneralDay(GENERAL_STATE.date);}
     else toast('❌ '+r.error);
   });
 }
@@ -1412,7 +1560,7 @@ function fetchParentReport(){
       var col=subj.pct>=75?'#639922':subj.pct>=60?'#BA7517':'#E24B4A';
       var tc=subj.pct>=75?'#3B6D11':subj.pct>=60?'#854F0B':'#A32D2D';
       var typeTag=subj.type==='minor'?'<span class="minor-badge" style="margin-left:6px">Minor</span>':'';
-      html+='<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1"><b>'+subj.code+'</b>'+typeTag+'<div style="font-size:12px;color:var(--gray-mid)">'+subj.name+(subj.teacherName?' · '+subj.teacherName:'')+'</div></div><span style="font-size:22px;font-weight:700;color:'+tc+'">'+subj.pct+'%</span></div><div class="progress"><div class="progress-fill" style="width:'+subj.pct+'%;background:'+col+'"></div></div><div style="font-size:12px;color:var(--gray-mid);margin-top:4px">'+subj.present+' present / '+(subj.total-subj.present)+' absent of '+subj.total+' periods</div>'+(subj.pct<75?'<div style="font-size:11px;color:var(--red);font-weight:600;margin-top:4px">⚠️ Below 75%</div>':'')+'<div style="margin-top:8px;max-height:120px;overflow-y:auto">'+subj.records.sort(function(a,b){return b.date.localeCompare(a.date)||a.period.localeCompare(b.period);}).slice(0,30).map(function(rec){return'<span class="badge '+(rec.status==='P'?'bp':'ba')+'" style="margin:2px">'+rec.date+' '+rec.period+' '+(rec.status==='P'?'✅':'❌')+'</span>';}).join('')+'</div></div>';
+      html+='<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1"><b>'+subj.code+'</b>'+typeTag+'<div style="font-size:12px;color:var(--gray-mid)">'+subj.name+(subj.teacherName?' · '+subj.teacherName:'')+'</div></div><span style="font-size:22px;font-weight:700;color:'+tc+'">'+subj.pct+'%</span></div><div class="progress"><div class="progress-fill" style="width:'+subj.pct+'%;background:'+col+'"></div></div><div style="font-size:12px;color:var(--gray-mid);margin-top:4px">'+subj.present+' present / '+(subj.total-subj.present)+' absent of '+subj.total+' periods</div>'+(subj.pct<75?'<div style="font-size:11px;color:var(--red);font-weight:600;margin-top:4px">⚠️ Below 75%</div>':'')+'<div style="margin-top:8px;max-height:120px;overflow-y:auto">'+subj.records.sort(function(a,b){return b.date.localeCompare(a.date)||a.period.localeCompare(b.period);}).slice(0,30).map(function(rec){return'<span class="badge '+(rec.status==='P'?'bp':'ba')+'" style="margin:2px">'+rec.date+' '+rec.period+'-'+subj.code+'-'+rec.status+'</span>';}).join('')+'</div></div>';
     });
     g('parent-result').innerHTML=html;
   });
